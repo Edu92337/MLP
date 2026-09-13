@@ -3,7 +3,7 @@
 #include<vector>
 #include<algorithm>
 #include"solucao.hpp"
-
+#include"subsequencia.hpp"
 
 void ordena(vector<Insertion_info>&custo_insercao){
     sort(custo_insercao.begin(),custo_insercao.end(),
@@ -58,4 +58,32 @@ void swap_intervalos(Solucao* s, int i, int j, int t_bloco1, int t_bloco2){
     // insere bloco2 no lugar de bloco1 deslocado por (t_bloco2 - t_bloco1)
     s->sequencia.insert(s->sequencia.begin() + i, bloco2.begin(), bloco2.end());
     s->sequencia.insert(s->sequencia.begin() + j + (t_bloco2 - t_bloco1), bloco1.begin(), bloco1.end());
+}
+
+void atualiza_todas_subsequencias(Solucao* s, vector<vector<Subsequencia>>& subseq_matrix){
+    int n = s->sequencia.size();
+
+    // Todas subsequencias de um unico no
+    for(int i = 0;i<n;i++){
+        subseq_matrix[i][i].W = (i > 0);
+        subseq_matrix[i][i].C = 0;
+        subseq_matrix[i][i].T = 0;
+        subseq_matrix[i][i].primeiro = s->sequencia[i];
+        subseq_matrix[i][i].ultimo = s->sequencia[i];
+    }
+
+    for(int i = 0;i<n;i++){
+        for(int j = i+1;j<n;j++){
+            // Subsequencia::Concatenar() -> precisa corrigir dps
+            subseq_matrix[i][j] = subseq_matrix[i][j].Concatenar(subseq_matrix[i][j-1],subseq_matrix[j][j]);
+        }
+    }
+
+    //Subsequencias invertidas
+    for(int i = n-1;i>=0;i--){
+        for(int j = i-1;j>=0;j--){
+             // Subsequencia::Concatenar() -> precisa corrigir dps
+            subseq_matrix[i][j] = subseq_matrix[i][j].Concatenar(subseq_matrix[i][j+1],subseq_matrix[j][j]);
+        }
+    }
 }
