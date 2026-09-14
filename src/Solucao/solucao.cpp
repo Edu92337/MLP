@@ -1,5 +1,6 @@
 #include<iostream>
 #include<vector>
+#include<algorithm>
 #include"solucao.hpp"
 
 Solucao::Solucao(Data* data_original){
@@ -25,6 +26,9 @@ void Solucao::calcula_valor_obj(){
     }
 }
 
-/*double Solucao::dist(int i ,int j){
-    return data->getDistance(i,j);
-}*/
+void Solucao::ordena(vector<int>&CL, int r){
+    sort(CL.begin(),CL.end(),
+        [&](int a,int b){
+            return dist(a,r) < dist(b,r);
+        });
+}

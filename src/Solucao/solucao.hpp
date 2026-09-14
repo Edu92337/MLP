@@ -14,6 +14,7 @@ struct Solucao {
     void calcula_valor_obj();
     //double dist(int i,int j);
     inline double dist(int i,int j) {return data->getDistance(i,j);};
+    void ordena(vector<int>&CL, int r);
 };
 
 
