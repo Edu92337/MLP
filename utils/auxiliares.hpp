@@ -5,13 +5,6 @@
 #include"solucao.hpp"
 #include"subsequencia.hpp"
 
-void ordena(vector<Insertion_info>&custo_insercao){
-    sort(custo_insercao.begin(),custo_insercao.end(),
-        [](Insertion_info a,Insertion_info b){
-            return a.custo < b.custo; // ordem crescente
-    });
-}
-
 vector<int> tres_nos_aleatorios(Solucao s){
     int n = s.data->getDimension();
     int no1,no2,no3;
