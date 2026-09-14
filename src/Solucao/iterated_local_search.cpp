@@ -29,17 +29,18 @@ vector<Insertion_info> ILS::calcular_custo_insercao(Solucao& s, vector<int>&CL){
 Solucao ILS::construcao(){
     Solucao s(data); // Recebe o mesmo ponteiro de data que a solução
     //std::cout << "Construindo uma solução inicial..." << std::endl;
-    s.sequencia = tres_nos_aleatorios(s);
+    alfa = (double) (rand() % 26)/RAND_MAX;
+    s.add_no(1);
+    int r = 1;
     vector<int>CL = nos_restantes(&s);
     while(!CL.empty()){
         vector<Insertion_info> custo_insercao = calcular_custo_insercao(s,CL);
-        ordena(custo_insercao);
-        alfa = (double) rand()/RAND_MAX;
-        int selecionado = rand()%((int)ceil(alfa * custo_insercao.size()));
-        s.add_no(custo_insercao[selecionado].no_inserido);
+        s.ordena(CL,r);
+        int selecionado = rand()%((int)ceil(alfa * CL.size()));
+        s.add_no(CL[selecionado]);
+        r = CL[selecionado];
         CL = nos_restantes(&s);
     }
-    s.add_no(s.sequencia[0]); // fecha o ciclo
     s.calcula_valor_obj(); // Atualiza o custo dessa solução criada
     //std::cout<<"Solução inicial construída com custo :"<<s.valor_obj<<std::endl;
     return s;
