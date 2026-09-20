@@ -1,5 +1,6 @@
 #pragma once
-#include"solucao.hpp"
+#include "solucao.hpp"
+#include "../Subsequencia/subsequencia.hpp"
 
 typedef struct  Insertion_info Insertion_info;
 struct Insertion_info{
@@ -12,16 +13,14 @@ typedef struct ILS ILS;
 struct ILS {
     ILS(Data* data_original);
     Data* data;
-    //int arg1;
-    //char** arg2;
     double alfa;
+
     Solucao construcao();
     vector<Insertion_info> calcular_custo_insercao(Solucao& s, vector<int>&CL);
-    bool best_improvement_swap(Solucao* s);
-    bool best_improvement_2_opt(Solucao* s);
-    bool best_improvement_or_opt(Solucao* s,int i);
-    void busca_local(Solucao* s);
+    bool best_improvement_swap(Solucao* s, vector<vector<Subsequencia>>& subseq_matrix);
+    bool best_improvement_2_opt(Solucao* s, vector<vector<Subsequencia>>& subseq_matrix);
+    bool best_improvement_or_opt(Solucao* s, int t_bloco, vector<vector<Subsequencia>>& subseq_matrix);
+    void busca_local(Solucao* s, vector<vector<Subsequencia>>& subseq_matrix);
     Solucao perturbacao(Solucao* s);
     Solucao solver(int max_iter, int max_iter_ils);
 };
-
