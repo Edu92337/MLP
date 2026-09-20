@@ -1,7 +1,8 @@
 #include"iterated_local_search.hpp"
 #include"solucao.hpp"
-#include"Data.h"
-#include"auxiliares.hpp"
+#include"../Data/Data.h"
+#include"../../utils/auxiliares.hpp"
+#include"../Subsequencia/subsequencia.hpp"
 #include<random>
 
 
@@ -27,16 +28,16 @@ vector<Insertion_info> ILS::calcular_custo_insercao(Solucao& s, vector<int>&CL){
 }
 
 Solucao ILS::construcao(){
-    Solucao s(data); // Recebe o mesmo ponteiro de data que a solução
-    //std::cout << "Construindo uma solução inicial..." << std::endl;
-    alfa = (double) (rand() % 26)/RAND_MAX;
+    Solucao s(data); 
+    alfa = (double) (rand() % 26)/100.0;
     s.add_no(1);
     int r = 1;
     vector<int>CL = nos_restantes(&s);
     while(!CL.empty()){
         vector<Insertion_info> custo_insercao = calcular_custo_insercao(s,CL);
         s.ordena(CL,r);
-        int selecionado = rand()%((int)ceil(alfa * CL.size()));
+        int limite = std::max(1,(int)ceil(alfa * CL.size())); // nunca deixa o módulo ser 0
+        int selecionado = rand()%limite;
         s.add_no(CL[selecionado]);
         r = CL[selecionado];
         CL = nos_restantes(&s);
@@ -47,86 +48,75 @@ Solucao ILS::construcao(){
 }
 
 
-bool ILS::best_improvement_swap(Solucao* s){
-    double best_delta = 0;
-    int best_i, best_j; // Melhores candidatos a troca
-    for(int i = 1;i<s->sequencia.size()-1;i++){
-        // Itera por todos os pares, comparando o custo novo
-        // mantendo os Nós adjacentes
-        int vi = s->sequencia[i];
-        int vi_next = s->sequencia[i+1];
-        int vi_prev = s->sequencia[i-1];
-        for(int j = i+1;j<s->sequencia.size()-1;j++){
-            double delta;
-            int vj = s->sequencia[j];
-            int vj_next = s->sequencia[j+1];
-            int vj_prev = s->sequencia[j-1];
-            // O  cálculo muda para Nós adjacentes
-            if(j == i+1 || j == i-1){
-                delta =-s->dist(vi_prev, vi) - s->dist(vj, vj_next) - s->dist(vi,vi_next)
-                        +s->dist(vi_prev, vj) +s->dist(vj, vi) +s->dist(vi, vj_next);
-            }
-            else{
-                delta = -s->dist(vi_prev,vi) -s->dist(vi,vi_next) +s->dist(vi_prev,vj)
-                        +s->dist(vj,vi_next) -s->dist(vj_prev,vj) -s->dist(vj,vj_next) + s->dist(vj_prev,vi) 
-                        +s->dist(vi,vj_next);
-            }
+bool ILS::best_improvement_swap(Solucao* s, vector<vector<Subsequencia>>& subseq_matrix){
+    int n = s->sequencia.size() - 1;
+    double melhor_custo = s->valor_obj;
+    int best_i = -1, best_j = -1;
 
-            if(delta < best_delta){
-                best_delta = delta;
+    for(int i = 1; i < n; i++){
+        for(int j = i+1; j < n; j++){
+            Subsequencia sigma(data);
+            if(j == i+1){ // nós adjacentes: não existe "meio"
+                Subsequencia s1(data), s2(data);
+                s1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[j][j]);
+                s2.Concatenar(s1, subseq_matrix[i][i]);
+                sigma.Concatenar(s2, subseq_matrix[j+1][n]);
+            } else {
+                Subsequencia s1(data), s2(data), s3(data);
+                s1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[j][j]);
+                s2.Concatenar(s1, subseq_matrix[i+1][j-1]);
+                s3.Concatenar(s2, subseq_matrix[i][i]);
+                sigma.Concatenar(s3, subseq_matrix[j+1][n]);
+            }
+            if(sigma.C < melhor_custo){
+                melhor_custo = sigma.C;
                 best_i = i;
                 best_j = j;
             }
-        
         }
     }
-    // Melhor custo novo é menor que o custo anterior 
-    // -> indica melhora na solução
-    if(best_delta < 0){
-        std::swap(s->sequencia[best_i],s->sequencia[best_j]);
-        s->valor_obj += best_delta;
-        //s->calcula_valor_obj();
-        return true;
-    }
-    return false; // Não achou na vizinhança um vizinho com custo menor
-}
 
+    if(best_i == -1) return false;
+    std::swap(s->sequencia[best_i], s->sequencia[best_j]);
+    s->valor_obj = melhor_custo;
+    atualiza_todas_subsequencias(s, subseq_matrix);
+    return true;
+}
 /*
 Solução inicial :[1,7,6,4,10,3,9,2,8,5,1]
 Solução final   :[1,9,3,10,4,6,7,2,8,5,1]
 
 ->[9,3,10,4,6,7] foi invertido
 */
-bool ILS::best_improvement_2_opt(Solucao* s){
-    double best_delta = 0;
-    int best_i, best_j;
-    for(int i = 1;i<s->sequencia.size()-1;i++){
-        int vi = s->sequencia[i];
-        int vi_next = s->sequencia[i+1];
-        for(int j = i+1;j<s->sequencia.size()-1;j++){
-            if(j == i+1 || j == i-1)continue;
-            int vj = s->sequencia[j];
-            int vj_next = s->sequencia[j+1];
-            double delta = -s->dist(vi,vi_next) - s->dist(vj,vj_next) 
-            + s->dist(vi_next,vj_next) + s->dist(vj,vi);
+bool ILS::best_improvement_2_opt(Solucao* s, vector<vector<Subsequencia>>& subseq_matrix){
+    // A ideia é identificar dois pontos na sequência e inverter a subsequência
+    // entre esses pontos, resultando em uma possível melhoria no custo total da solução.
+    int n = s->sequencia.size() - 1;
+    double melhor_custo = s->valor_obj;
+    int best_i = -1, best_j = -1;
 
-            if(delta < best_delta){
-                best_delta = delta;
+    for (int i = 1; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            Subsequencia sigma_1(data), sigma_2(data);
+            sigma_1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[i][j]);
+            sigma_2.Concatenar(sigma_1, subseq_matrix[j+1][n]);
+
+            if (sigma_2.C < melhor_custo) {
+                melhor_custo = sigma_2.C;
                 best_i = i;
                 best_j = j;
             }
         }
     }
 
-    if(best_delta < 0){
-        // intervalo [i,j+1) -> [i,j]
-        std::swap(s->sequencia[best_i + 1],s->sequencia[best_j]);
-        reverse(s->sequencia.begin()+best_i + 2,s->sequencia.begin()+best_j); 
-        s->valor_obj += best_delta;
-        return true;
-    }return false;
-}
+    if (best_i == -1 || best_j == -1) return false;
 
+    std::swap(s->sequencia[best_i], s->sequencia[best_j]);
+    reverse(s->sequencia.begin() + best_i + 1, s->sequencia.begin() + best_j);
+    s->valor_obj = melhor_custo;
+    atualiza_todas_subsequencias(s, subseq_matrix);
+    return true;
+}
 
 /*
 t_bloco = 1
@@ -137,69 +127,52 @@ t_bloco = 2
 Solução inicial :[1,7,6,4,10,3,9,2,8,5,1]
 Solução final   :[1,7,6,3,9,2,8,4,10,5,1]
 */
-bool ILS::best_improvement_or_opt(Solucao* s, int t_bloco){
-    double best_delta = 0;
-    int best_i,best_j;
-    for(int i = 1;i<s->sequencia.size()-t_bloco;i++){
-        int vi = s->sequencia[i];
-        //Precisa analisar o tamanho do bloco
-        int vi_next = s->sequencia[i+t_bloco];
-        int vi_prev = s->sequencia[i-1];
-        int vi_fim = s->sequencia[i+t_bloco-1];
-        
-        for(int j = 1;j<s->sequencia.size()-1;j++){
-            double delta;
-            int vj = s->sequencia[j];
-            int vj_next= s->sequencia[j+1];
-            if(j == i || j == i-1) continue;
-            if(j>=i && j<=i+ t_bloco-1) continue;
-            if(t_bloco == 1){
-                delta = -s->dist(vi_prev,vi) - s->dist(vi,vi_next) - s->dist(vj,vj_next)
-                        + s->dist(vi_prev,vi_next) + s->dist(vj,vi) + s->dist(vi,vj_next);
+bool ILS::best_improvement_or_opt(Solucao* s, int t_bloco, vector<vector<Subsequencia>>& subseq_matrix){
+    int n = s->sequencia.size() - 1;
+    double melhor_custo = s->valor_obj;
+    int best_i = -1, best_j = -1;
+
+    for(int i = 1; i <= n - t_bloco; i++){
+        int fim = i + t_bloco - 1;
+        for(int j = 0; j < n; j++){
+            if(j >= i-1 && j <= fim) continue; 
+
+            Subsequencia sigma(data);
+            if(j > fim){
+                // bloco vai pra frente: prefixo + [fim+1..j] + bloco + sufixo
+                Subsequencia s1(data), s2(data);
+                s1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[fim+1][j]);
+                s2.Concatenar(s1, subseq_matrix[i][fim]);
+                sigma.Concatenar(s2, subseq_matrix[j+1][n]);
+            } else {
+                // bloco vai pra trás: [0..j] + bloco + [j+1..i-1] + sufixo
+                Subsequencia s1(data), s2(data);
+                s1.Concatenar(subseq_matrix[0][j], subseq_matrix[i][fim]);
+                s2.Concatenar(s1, subseq_matrix[j+1][i-1]);
+                sigma.Concatenar(s2, subseq_matrix[fim+1][n]);
             }
-            else{
-                delta = -s->dist(vi_prev,vi) - s->dist(vi_fim,vi_next) - s->dist(vj,vj_next)
-                        + s->dist(vi,vj) + s->dist(vi_prev,vi_next) + s->dist(vi_fim,vj_next);
-            }
-            if(delta < best_delta){
-                best_delta = delta;
+
+            if(sigma.C < melhor_custo){
+                melhor_custo = sigma.C;
                 best_i = i;
                 best_j = j;
             }
         }
     }
-    if(best_delta < 0){
-        if(t_bloco == 1){
-            s->sequencia.insert(s->sequencia.begin()+best_j+1,s->sequencia[best_i]);
-            // remove o nó original 
-            if(best_i > best_j) s->sequencia.erase(s->sequencia.begin()+best_i+1);
-            
-            // Se o nó removido estiver antes do nó inserido, o índice do nó removido aumenta em 1
-            else s->sequencia.erase(s->sequencia.begin()+best_i);
 
-        }else{
-            //intervalo removido -> [i,i+t_bloco)
-            std::vector<int>intervalo_removido(s->sequencia.begin()+best_i,s->sequencia.begin()+best_i+t_bloco);
-            if(best_i > best_j){
-                // coloca o intervalo removido na posição j+1
-                s->sequencia.insert(s->sequencia.begin()+best_j+1,intervalo_removido.begin(),intervalo_removido.end());
-                // remove o intervalo original
-                s->sequencia.erase(s->sequencia.begin()+best_i+t_bloco,s->sequencia.begin()+best_i+t_bloco+t_bloco);
-            }else{
+    if(best_i == -1) return false;
 
-                // remove o intervalo original
-                s->sequencia.erase(s->sequencia.begin()+best_i,s->sequencia.begin()+best_i+t_bloco);
-                // coloca o intervalo removido na posição j+1
-                s->sequencia.insert(s->sequencia.begin()+best_j-t_bloco+1,intervalo_removido.begin(),intervalo_removido.end());
-            }
-        }
-        s->valor_obj += best_delta;
-        return true;
-    }
-    return false;
+    std::vector<int> bloco(s->sequencia.begin()+best_i, s->sequencia.begin()+best_i+t_bloco);
+    s->sequencia.erase(s->sequencia.begin()+best_i, s->sequencia.begin()+best_i+t_bloco);
+    int pos = (best_j > best_i) ? (best_j - t_bloco + 1) : (best_j + 1);
+    s->sequencia.insert(s->sequencia.begin()+pos, bloco.begin(), bloco.end());
+
+    s->valor_obj = melhor_custo;
+    atualiza_todas_subsequencias(s, subseq_matrix);
+    return true;
 }
 
-void ILS::busca_local(Solucao* s){
+void ILS::busca_local(Solucao* s,vector<vector<Subsequencia>>& subseq_matrix){
     // Vai buscar uma solução melhor na vizinhaça de um dos 
     // 5 métodos apresentados (swap,2-opt,or-opt,reinsertion,or-opt2)
     // Escolhido de forma aleatória
@@ -210,23 +183,23 @@ void ILS::busca_local(Solucao* s){
         int n = rand() % NL.size();
         switch(NL[n]){
             case 1:
-                improved = best_improvement_swap(s);
+                improved = best_improvement_swap(s,subseq_matrix);
                 //std::cout << "Melhorando a solução com custo(swap):"<<s->valor_obj << std::endl;
                 break;
             case 2:
-                improved = best_improvement_2_opt(s);
+                improved = best_improvement_2_opt(s,subseq_matrix);
                 //std::cout << "Melhorando a solução com custo(2_opt) :"<<s->valor_obj << std::endl;
                 break;
             case 3:
-                improved = best_improvement_or_opt(s,1);
+                improved = best_improvement_or_opt(s,1,subseq_matrix);
                 //std::cout << "Melhorando a solução com custo(or_opt1) :"<<s->valor_obj << std::endl;
                 break;
             case 4:
-                improved = best_improvement_or_opt(s,2);
+                improved = best_improvement_or_opt(s,2,subseq_matrix);
                 //std::cout << "Melhorando a solução com custo(or_opt2) :"<<s->valor_obj << std::endl;
                 break;
             case 5:
-                improved = best_improvement_or_opt(s,3);
+                improved = best_improvement_or_opt(s,3,subseq_matrix);
                 //std::cout << "Melhorando a solução com custo(or_opt3) :"<<s->valor_obj << std::endl;
                 break;
         }
@@ -243,17 +216,34 @@ Solucao ILS::perturbacao(Solucao* s){
     Solucao sf(*s);
     int n = s->data->getDimension();
     int t_max = std::max(1, (int)ceil(s->data->getDimension() / 10.0));
-    int t1 = 2 + rand() % t_max;
-    int t2 = 2 + rand() % t_max;
 
-    // posição final : p1 + t1 - 1
-    int p1 = 1 + rand() % (n - t1 -t2 -1);
-    //garantir que p2 não inicie no intervalo de p1
-    // posição final não pode sair do vetor
-    int p2 = p1 + t1 + rand() % (n - t2 -p1-t1 + 1);
+    int t1 = 0, t2 = 0, p1 = 0, p2 = 0;
+    bool valido = false;
+    const int MAX_TENTATIVAS = 1000;
+    for(int tentativa = 0; tentativa < MAX_TENTATIVAS && !valido; tentativa++){
+        t1 = 2 + rand() % t_max;
+        t2 = 2 + rand() % t_max;
 
-    while(p2 + t2 - 1 >= n) p2 = p1 + t1 + rand() % (n - t2 -p1-t1 + 1);
-    
+        int faixa_p1 = n - t1 - t2 - 1;
+        if(faixa_p1 <= 0) continue; //instância pequena demais para esses t1/t2,
+
+        // posição final : p1 + t1 - 1
+        p1 = 1 + rand() % faixa_p1;
+
+        int faixa_p2 = n - t2 - p1 - t1 + 1;
+        if(faixa_p2 <= 0) continue;
+
+        // posição final não pode sair do vetor
+        p2 = p1 + t1 + rand() % faixa_p2;
+        if(p2 + t2 - 1 >= n) continue;
+
+        valido = true;
+    }
+
+    if(!valido){
+        return sf;
+    }
+
     // Remove ligação do inicio e fim dos blocos 1 e 2
     // Adiciona as novas ligações entre os blocos 1 e 2
     double delta = 0.0;
@@ -289,16 +279,18 @@ Solucao ILS::solver(int max_iter, int max_iter_ils){
     for(int i = 0;i<max_iter;i++){
         Solucao s = construcao();
         Solucao melhor = s;
-
+        vector<vector<Subsequencia>> subseq_matrix(data->getDimension()+1, vector<Subsequencia>(data->getDimension()+1));
+        atualiza_todas_subsequencias(&s,subseq_matrix);
         int iter_ils = 0;
 
         while(iter_ils <= max_iter_ils){
-            busca_local(&s);
+            busca_local(&s,subseq_matrix);
             if(s.valor_obj < melhor.valor_obj){
                 melhor = s;
                 iter_ils = 0;
             }
             s = perturbacao(&melhor);
+            atualiza_todas_subsequencias(&s, subseq_matrix);
             iter_ils++;
         }
         if(melhor.valor_obj < melhor_de_todas.valor_obj){
