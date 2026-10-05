@@ -19,11 +19,13 @@ void Solucao::add_no(double x){
 }
 
 void Solucao::calcula_valor_obj(){
-    Solucao::valor_obj = 0;
-    for(int i = 0;i<Solucao::sequencia.size()-1;i++){
-        // incrementa o custo de ir da cidade atual (i) para a proxima da sequencia (i + 1)
-        Solucao::valor_obj += data->getDistance(sequencia[i],sequencia[i+1]);
+    double t = 0, c = 0;
+    int n = sequencia.size() - 1;          
+    for(int i = 1; i < n; i++){           
+        t += data->getDistance(sequencia[i-1], sequencia[i]);
+        c += t;
     }
+    valor_obj = c;
 }
 
 void Solucao::ordena(vector<int>&CL, int r){

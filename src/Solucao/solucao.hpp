@@ -1,5 +1,5 @@
 #pragma once
-#include"Data.h"
+#include"Data/Data.h"
 #include<vector>
 
 typedef struct Solucao Solucao;
@@ -16,5 +16,3 @@ struct Solucao {
     inline double dist(int i,int j) {return data->getDistance(i,j);};
     void ordena(vector<int>&CL, int r);
 };
-
-
