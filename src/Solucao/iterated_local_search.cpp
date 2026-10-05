@@ -1,8 +1,8 @@
 #include"iterated_local_search.hpp"
 #include"solucao.hpp"
-#include"../Data/Data.h"
+#include"Data/Data.h"
 #include"../../utils/auxiliares.hpp"
-#include"../Subsequencia/subsequencia.hpp"
+#include"Subsequencia/subsequencia.hpp"
 #include<random>
 
 
@@ -28,13 +28,16 @@ vector<Insertion_info> ILS::calcular_custo_insercao(Solucao& s, vector<int>&CL){
 }
 
 Solucao ILS::construcao(){
-    Solucao s(data); 
+    Solucao s(data); // Recebe o mesmo ponteiro de data que a solução
+    //std::cout << "Construindo uma solução inicial..." << std::endl;
+    // alfa em [0, 0.25]. Antes dividia por RAND_MAX, o que deixava alfa
+    // praticamente sempre ~0 e fazia ceil(alfa*CL.size()) virar 0, causando
+    // rand()%0 (comportamento indefinido/crash) logo abaixo.
     alfa = (double) (rand() % 26)/100.0;
     s.add_no(1);
     int r = 1;
     vector<int>CL = nos_restantes(&s);
     while(!CL.empty()){
-        vector<Insertion_info> custo_insercao = calcular_custo_insercao(s,CL);
         s.ordena(CL,r);
         int limite = std::max(1,(int)ceil(alfa * CL.size())); // nunca deixa o módulo ser 0
         int selecionado = rand()%limite;
@@ -42,6 +45,7 @@ Solucao ILS::construcao(){
         r = CL[selecionado];
         CL = nos_restantes(&s);
     }
+    s.add_no(1);
     s.calcula_valor_obj(); // Atualiza o custo dessa solução criada
     //std::cout<<"Solução inicial construída com custo :"<<s.valor_obj<<std::endl;
     return s;
@@ -98,7 +102,8 @@ bool ILS::best_improvement_2_opt(Solucao* s, vector<vector<Subsequencia>>& subse
     for (int i = 1; i < n; i++) {
         for (int j = i + 1; j < n; j++) {
             Subsequencia sigma_1(data), sigma_2(data);
-            sigma_1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[i][j]);
+            //sigma_1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[i][j]);
+            sigma_1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[j][i]);
             sigma_2.Concatenar(sigma_1, subseq_matrix[j+1][n]);
 
             if (sigma_2.C < melhor_custo) {
@@ -135,7 +140,7 @@ bool ILS::best_improvement_or_opt(Solucao* s, int t_bloco, vector<vector<Subsequ
     for(int i = 1; i <= n - t_bloco; i++){
         int fim = i + t_bloco - 1;
         for(int j = 0; j < n; j++){
-            if(j >= i-1 && j <= fim) continue; 
+            if(j >= i-1 && j <= fim) continue; // reinserção dentro/colada no próprio bloco não faz sentido
 
             Subsequencia sigma(data);
             if(j > fim){
@@ -225,7 +230,7 @@ Solucao ILS::perturbacao(Solucao* s){
         t2 = 2 + rand() % t_max;
 
         int faixa_p1 = n - t1 - t2 - 1;
-        if(faixa_p1 <= 0) continue; //instância pequena demais para esses t1/t2,
+        if(faixa_p1 <= 0) continue; // instância pequena demais para esses t1/t2, tenta de novo
 
         // posição final : p1 + t1 - 1
         p1 = 1 + rand() % faixa_p1;
@@ -233,6 +238,7 @@ Solucao ILS::perturbacao(Solucao* s){
         int faixa_p2 = n - t2 - p1 - t1 + 1;
         if(faixa_p2 <= 0) continue;
 
+        //garantir que p2 não inicie no intervalo de p1
         // posição final não pode sair do vetor
         p2 = p1 + t1 + rand() % faixa_p2;
         if(p2 + t2 - 1 >= n) continue;
@@ -246,51 +252,38 @@ Solucao ILS::perturbacao(Solucao* s){
 
     // Remove ligação do inicio e fim dos blocos 1 e 2
     // Adiciona as novas ligações entre os blocos 1 e 2
-    double delta = 0.0;
-    if(p2 == p1 + t1){
-        // blocos adjacentes: s->sequencia[p1+t1] == s->sequencia[p2]
-        delta = - s->dist(s->sequencia[p1-1],s->sequencia[p1]) - s->dist(s->sequencia[p1+t1-1],s->sequencia[p2])
-                - s->dist(s->sequencia[p2+t2-1],s->sequencia[p2+t2])
-                + s->dist(s->sequencia[p1-1],s->sequencia[p2]) + s->dist(s->sequencia[p2+t2-1],s->sequencia[p1])
-                + s->dist(s->sequencia[p1+t1-1],s->sequencia[p2+t2]);
-    } else {
-        // blocos não adjacentes
-        delta = - s->dist(s->sequencia[p1-1],s->sequencia[p1]) - s->dist(s->sequencia[p1+t1-1],s->sequencia[p1+t1])
-                - s->dist(s->sequencia[p2-1],s->sequencia[p2]) - s->dist(s->sequencia[p2+t2-1],s->sequencia[p2+t2])
-                + s->dist(s->sequencia[p1-1],s->sequencia[p2]) + s->dist(s->sequencia[p2+t2-1],s->sequencia[p1+t1])
-                + s->dist(s->sequencia[p2-1],s->sequencia[p1]) + s->dist(s->sequencia[p1+t1-1],s->sequencia[p2+t2]);
-    }
-
     swap_intervalos(&sf,p1,p2,t1,t2);
     
     // Precisa atualizar para calcular com delta
     //sf.calcula_valor_obj();
-    sf.valor_obj += delta;
+
     //std::cout << "valor apos a perturbação solução com custo :"<<sf.valor_obj << std::endl;
     return sf;
 }
 
 
-
 Solucao ILS::solver(int max_iter, int max_iter_ils){
     Solucao melhor_de_todas(data);
     melhor_de_todas.valor_obj = INFINITY;
+    int dim = data->getDimension();
 
-    for(int i = 0;i<max_iter;i++){
+    for(int i = 0; i < max_iter; i++){
         Solucao s = construcao();
+        vector<vector<Subsequencia>> subseq_matrix(dim+1, vector<Subsequencia>(dim+1, Subsequencia(data)));
+        atualiza_todas_subsequencias(&s, subseq_matrix);
+        s.valor_obj = subseq_matrix[0][dim].C; 
         Solucao melhor = s;
-        vector<vector<Subsequencia>> subseq_matrix(data->getDimension()+1, vector<Subsequencia>(data->getDimension()+1));
-        atualiza_todas_subsequencias(&s,subseq_matrix);
         int iter_ils = 0;
 
         while(iter_ils <= max_iter_ils){
-            busca_local(&s,subseq_matrix);
-            if(s.valor_obj < melhor.valor_obj){
+            busca_local(&s, subseq_matrix);
+            if(s.valor_obj < melhor.valor_obj - 1e-9){
                 melhor = s;
                 iter_ils = 0;
             }
             s = perturbacao(&melhor);
             atualiza_todas_subsequencias(&s, subseq_matrix);
+            s.valor_obj = subseq_matrix[0][dim].C;   
             iter_ils++;
         }
         if(melhor.valor_obj < melhor_de_todas.valor_obj){
