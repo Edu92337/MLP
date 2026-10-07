@@ -29,17 +29,13 @@ vector<Insertion_info> ILS::calcular_custo_insercao(Solucao& s, vector<int>&CL){
 
 Solucao ILS::construcao(){
     Solucao s(data); // Recebe o mesmo ponteiro de data que a solução
-    //std::cout << "Construindo uma solução inicial..." << std::endl;
-    // alfa em [0, 0.25]. Antes dividia por RAND_MAX, o que deixava alfa
-    // praticamente sempre ~0 e fazia ceil(alfa*CL.size()) virar 0, causando
-    // rand()%0 (comportamento indefinido/crash) logo abaixo.
     alfa = (double) (rand() % 26)/100.0;
     s.add_no(1);
     int r = 1;
     vector<int>CL = nos_restantes(&s);
     while(!CL.empty()){
         s.ordena(CL,r);
-        int limite = std::max(1,(int)ceil(alfa * CL.size())); // nunca deixa o módulo ser 0
+        int limite = std::max(1,(int)ceil(alfa * CL.size())); 
         int selecionado = rand()%limite;
         s.add_no(CL[selecionado]);
         r = CL[selecionado];
@@ -47,7 +43,6 @@ Solucao ILS::construcao(){
     }
     s.add_no(1);
     s.calcula_valor_obj(); // Atualiza o custo dessa solução criada
-    //std::cout<<"Solução inicial construída com custo :"<<s.valor_obj<<std::endl;
     return s;
 }
 
@@ -60,7 +55,7 @@ bool ILS::best_improvement_swap(Solucao* s, vector<vector<Subsequencia>>& subseq
     for(int i = 1; i < n; i++){
         for(int j = i+1; j < n; j++){
             Subsequencia sigma(data);
-            if(j == i+1){ // nós adjacentes: não existe "meio"
+            if(j == i+1){ 
                 Subsequencia s1(data), s2(data);
                 s1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[j][j]);
                 s2.Concatenar(s1, subseq_matrix[i][i]);
@@ -140,17 +135,17 @@ bool ILS::best_improvement_or_opt(Solucao* s, int t_bloco, vector<vector<Subsequ
     for(int i = 1; i <= n - t_bloco; i++){
         int fim = i + t_bloco - 1;
         for(int j = 0; j < n; j++){
-            if(j >= i-1 && j <= fim) continue; // reinserção dentro/colada no próprio bloco não faz sentido
+            if(j >= i-1 && j <= fim) continue; 
 
             Subsequencia sigma(data);
             if(j > fim){
-                // bloco vai pra frente: prefixo + [fim+1..j] + bloco + sufixo
+
                 Subsequencia s1(data), s2(data);
                 s1.Concatenar(subseq_matrix[0][i-1], subseq_matrix[fim+1][j]);
                 s2.Concatenar(s1, subseq_matrix[i][fim]);
                 sigma.Concatenar(s2, subseq_matrix[j+1][n]);
             } else {
-                // bloco vai pra trás: [0..j] + bloco + [j+1..i-1] + sufixo
+
                 Subsequencia s1(data), s2(data);
                 s1.Concatenar(subseq_matrix[0][j], subseq_matrix[i][fim]);
                 s2.Concatenar(s1, subseq_matrix[j+1][i-1]);
@@ -189,23 +184,18 @@ void ILS::busca_local(Solucao* s,vector<vector<Subsequencia>>& subseq_matrix){
         switch(NL[n]){
             case 1:
                 improved = best_improvement_swap(s,subseq_matrix);
-                //std::cout << "Melhorando a solução com custo(swap):"<<s->valor_obj << std::endl;
                 break;
             case 2:
                 improved = best_improvement_2_opt(s,subseq_matrix);
-                //std::cout << "Melhorando a solução com custo(2_opt) :"<<s->valor_obj << std::endl;
                 break;
             case 3:
                 improved = best_improvement_or_opt(s,1,subseq_matrix);
-                //std::cout << "Melhorando a solução com custo(or_opt1) :"<<s->valor_obj << std::endl;
                 break;
             case 4:
                 improved = best_improvement_or_opt(s,2,subseq_matrix);
-                //std::cout << "Melhorando a solução com custo(or_opt2) :"<<s->valor_obj << std::endl;
                 break;
             case 5:
                 improved = best_improvement_or_opt(s,3,subseq_matrix);
-                //std::cout << "Melhorando a solução com custo(or_opt3) :"<<s->valor_obj << std::endl;
                 break;
         }
         
@@ -217,7 +207,6 @@ void ILS::busca_local(Solucao* s,vector<vector<Subsequencia>>& subseq_matrix){
 
 
 Solucao ILS::perturbacao(Solucao* s){
-    //std::cout << "Perturbando a solução com custo :"<<s->valor_obj << std::endl;
     Solucao sf(*s);
     int n = s->data->getDimension();
     int t_max = std::max(1, (int)ceil(s->data->getDimension() / 10.0));
@@ -230,7 +219,7 @@ Solucao ILS::perturbacao(Solucao* s){
         t2 = 2 + rand() % t_max;
 
         int faixa_p1 = n - t1 - t2 - 1;
-        if(faixa_p1 <= 0) continue; // instância pequena demais para esses t1/t2, tenta de novo
+        if(faixa_p1 <= 0) continue; 
 
         // posição final : p1 + t1 - 1
         p1 = 1 + rand() % faixa_p1;
@@ -254,10 +243,6 @@ Solucao ILS::perturbacao(Solucao* s){
     // Adiciona as novas ligações entre os blocos 1 e 2
     swap_intervalos(&sf,p1,p2,t1,t2);
     
-    // Precisa atualizar para calcular com delta
-    //sf.calcula_valor_obj();
-
-    //std::cout << "valor apos a perturbação solução com custo :"<<sf.valor_obj << std::endl;
     return sf;
 }
 
