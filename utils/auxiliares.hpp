@@ -58,7 +58,7 @@ void atualiza_todas_subsequencias(Solucao* s, vector<vector<Subsequencia>>& m){
     for(int i = 0; i <= n; i++){
         m[i][i].data = s->data;
         m[i][i].primeiro = m[i][i].ultimo = s->sequencia[i];
-        m[i][i].W = (i > 0 && i < n) ? 1 : 0;  
+        m[i][i].W = (i > 0) ? 1 : 0;
         m[i][i].T = 0; m[i][i].C = 0;
     }
     for(int i = 0; i <= n; i++)                 
