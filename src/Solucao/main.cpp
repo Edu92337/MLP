@@ -18,11 +18,9 @@ int main(int arg,char* argv[]){
     //std::cout << "Instância: " << data->getInstanceName() << std::endl;
     //std::cout << "Dimensão: " << data->getDimension() << std::endl;
     ILS heuristica(data);
-    int max_iter = 50;
+    int max_iter = 10;
     int max_iter_ils;
-    if(data->getDimension() >= 150){
-        max_iter_ils = data->getDimension()/2;
-    }else max_iter_ils = data->getDimension();
+    max_iter_ils = std::min(100,data->getDimension());
     //Solucao s = heuristica.construcao();
     std::chrono::duration<double> tempo_medio = std::chrono::duration<double>::zero();
     Solucao s(data);
