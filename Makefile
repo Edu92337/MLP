@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -I src -I utils
+CXXFLAGS = -std=c++17 -O3 -I src -I utils
 
 SRC = \
 	src/Solucao/main.cpp \
