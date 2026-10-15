@@ -24,16 +24,18 @@ int main(int arg,char* argv[]){
     //Solucao s = heuristica.construcao();
     std::chrono::duration<double> tempo_medio = std::chrono::duration<double>::zero();
     Solucao s(data);
+    double custo_medio = 0.0;
     for(int i = 0;i<10;i++){
         auto inicio = std::chrono::high_resolution_clock::now();
         s = heuristica.solver(max_iter,max_iter_ils);
         auto fim = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> tempo = fim - inicio;
         tempo_medio += tempo;
+        custo_medio += s.valor_obj;
     }
     
     std::cout << "Tempo: " << tempo_medio.count()/(double)10.0 << " segundos\n";
-    std::cout <<"Custo: "<<s.valor_obj<<'\n';
+    std::cout <<"Custo: "<<custo_medio/(double)10.0<<'\n';
 
 
     return 0;
